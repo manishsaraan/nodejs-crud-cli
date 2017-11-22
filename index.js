@@ -58,6 +58,80 @@ function getGithubCredentials(callback) {
   inquirer.prompt(questions).then(callback);
 }
 
-getGithubCredentials(function(){
-  console.log(arguments);
+
+//get github token
+var github = new GitHubApi({
+  version: '3.0.0'
 });
+
+getGithubCredentials(function(){
+  var status = new Spinner('Authenticating you, please wait...');
+  status.start();
+  
+  github.authenticate({
+      type: 'basic',
+      username: arguments[0].username,
+      password: arguments[0].password
+    });
+
+  github.authorization.create({
+    scopes: ['user', 'public_repo', 'repo', 'repo:status'],
+    note: 'ginit, the command-line tool for initalizing Git repos'
+  }, function(err, res) {
+    status.stop();
+    if ( err ) {
+       console.log( err );
+    }
+    if (res.token) {
+      prefs.github = {
+        token : res.token
+      };
+      console.log(res.token);   
+    }
+   
+  });
+ 
+});
+
+function getGithubToken(callback) {
+  var prefs = new Preferences('ginit');
+    
+  if (prefs.github && prefs.github.token) {
+    return callback(null, prefs.github.token);
+  }
+
+  // Fetch token
+  getGithubCredentials(function(credentials) {
+  var status = new Spinner('Authenticating you, please wait...');
+  status.start();
+
+  github.authenticate(
+    _.extend(
+      {
+        type: 'basic',
+        username : arguments['0'].username,
+        password : arguments['0'].password,
+      }
+    )
+  );
+
+  github.authorization.create({
+    scopes: ['user', 'public_repo', 'repo', 'repo:status'],
+    note: 'ginit, the command-line tool for initalizing Git repos'
+  }, function(err, res) {
+    status.stop();
+    if ( err ) {
+      return callback( err );
+    }
+    if (res.token) {
+      prefs.github = {
+        token : res.token
+      };
+      return callback(null, res.token);
+    }
+    return callback();
+  });
+});
+
+
+}
